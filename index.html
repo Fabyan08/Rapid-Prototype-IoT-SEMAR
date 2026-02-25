@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simulasi Jam Darurat</title>
+    <style>
+      body {
+        background-color: #1a1a1a;
+        color: white;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .watch-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        margin-bottom: 30px;
+      }
+
+      /* Desain Bodi Jam (Kotak) */
+      .watch-body {
+        background: linear-gradient(145deg, #444, #222);
+        padding: 20px;
+        border-radius: 20px;
+        box-shadow:
+          0 10px 30px rgba(0, 0, 0, 0.8),
+          inset 0 2px 5px rgba(255, 255, 255, 0.1),
+          inset 0 -2px 5px rgba(0, 0, 0, 0.5);
+        border: 2px solid #555;
+        position: relative;
+        z-index: 2;
+      }
+
+      /* Layar Canvas */
+      canvas {
+        background-color: #000;
+        border-radius: 12px;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
+        cursor: pointer;
+        display: block;
+      }
+
+      /* Tali Jam (Strap) */
+      .strap {
+        position: absolute;
+        width: 180px;
+        height: 400px;
+        background: #111;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+        border-radius: 10px;
+        border-left: 2px solid #d97736;
+        border-right: 2px solid #d97736;
+        background-image: repeating-linear-gradient(
+          45deg,
+          #111 0,
+          #111 2px,
+          #1a1a1a 2px,
+          #1a1a1a 4px
+        );
+      }
+
+      /* Tombol Samping Fisik */
+      .watch-button {
+        width: 15px;
+        height: 50px;
+        background: #555;
+        border-radius: 0 8px 8px 0;
+        margin-left: -2px;
+        cursor: pointer;
+        box-shadow:
+          inset -2px 0 5px rgba(255, 255, 255, 0.2),
+          2px 2px 5px rgba(0, 0, 0, 0.5);
+        position: relative;
+        z-index: 2;
+        transition:
+          transform 0.1s,
+          background 0.1s;
+      }
+
+      .watch-button:active {
+        transform: translateX(-3px);
+        background: #444;
+      }
+
+      /* Lampu LED Samping */
+      .led-indicator {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #333;
+        left: -12px;
+        top: 50%;
+        transform: translateY(-50%);
+        box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+        transition: all 0.2s;
+      }
+
+      /* State LED */
+      .led-siaga {
+        background: #0f0;
+        box-shadow: 0 0 10px #0f0;
+        animation: blink-slow 5s infinite;
+      }
+      .led-darurat {
+        background: #f00;
+        box-shadow: 0 0 15px #f00;
+        animation: blink-fast 0.2s infinite;
+      }
+      .led-biru {
+        background: #00f;
+        box-shadow: 0 0 15px #00f;
+      }
+      .led-kuning {
+        background: #ff0;
+        box-shadow: 0 0 15px #ff0;
+        animation: blink-medium 0.5s infinite;
+      }
+      .led-merah-solid {
+        background: #f00;
+        box-shadow: 0 0 15px #f00;
+      }
+      .led-hijau-solid {
+        background: #0f0;
+        box-shadow: 0 0 15px #0f0;
+      }
+      .led-putih {
+        background: #fff;
+        box-shadow: 0 0 15px #fff;
+      }
+
+      @keyframes blink-slow {
+        0%,
+        10%,
+        100% {
+          opacity: 0.1;
+        }
+        5% {
+          opacity: 1;
+        }
+      }
+      @keyframes blink-medium {
+        0%,
+        100% {
+          opacity: 0.1;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      @keyframes blink-fast {
+        0%,
+        100% {
+          opacity: 0.1;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      /* Panel Kontrol Eksternal (Simulasi) */
+      .controls {
+        background: #222;
+        padding: 20px;
+        border-radius: 12px;
+        max-width: 400px;
+        width: 100%;
+        text-align: center;
+        border: 1px solid #444;
+      }
+
+      .controls h3 {
+        margin-top: 0;
+        color: #d97736;
+      }
+      button.btn-control {
+        background: #444;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        margin: 5px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      button.btn-control:hover {
+        background: #666;
+      }
+      button.btn-control.alert {
+        background: #a00;
+      }
+      button.btn-control.alert:hover {
+        background: #d00;
+      }
+
+      /* Efek Getar Visual */
+      @keyframes shake {
+        0% {
+          transform: translate(1px, 1px) rotate(0deg);
+        }
+        10% {
+          transform: translate(-1px, -2px) rotate(-1deg);
+        }
+        20% {
+          transform: translate(-3px, 0px) rotate(1deg);
+        }
+        30% {
+          transform: translate(3px, 2px) rotate(0deg);
+        }
+        40% {
+          transform: translate(1px, -1px) rotate(1deg);
+        }
+        50% {
+          transform: translate(-1px, 2px) rotate(-1deg);
+        }
+        60% {
+          transform: translate(-3px, 1px) rotate(0deg);
+        }
+        70% {
+          transform: translate(3px, 1px) rotate(-1deg);
+        }
+        80% {
+          transform: translate(-1px, -1px) rotate(1deg);
+        }
+        90% {
+          transform: translate(1px, 2px) rotate(0deg);
+        }
+        100% {
+          transform: translate(1px, -2px) rotate(-1deg);
+        }
+      }
+      .vibrating {
+        animation: shake 0.1s infinite;
+      }
+
+      .instructions-text {
+        font-size: 12px;
+        color: #888;
+        margin-top: 15px;
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="watch-container" id="watchContainer">
+      <div class="strap"></div>
+      <div class="watch-body">
+        <!-- Canvas Layar Jam -->
+        <canvas id="watchScreen" width="260" height="280"></canvas>
+      </div>
+      <!-- Tombol Fisik & LED -->
+      <div style="position: relative">
+        <div class="led-indicator led-siaga" id="led"></div>
+        <div class="watch-button" id="hardwareBtn"></div>
+      </div>
+    </div>
+
+    <!-- Panel Kontrol Simulasi -->
+    <div class="controls">
+      <h3>Panel Simulasi Eksternal</h3>
+      <p style="font-size: 14px; margin-bottom: 15px">
+        Gunakan tombol fisik di sisi kanan jam untuk interaksi, atau klik panel
+        di bawah untuk simulasi kondisi.
+      </p>
+
+      <button class="btn-control alert" onclick="triggerPeringatanHP()">
+        ⚠️ Simulasi HP Terima Peringatan
+      </button>
+      <br />
+      <button class="btn-control" onclick="toggleKoneksi()" id="btnKoneksi">
+        Toggle Offline/Online
+      </button>
+      <button class="btn-control" onclick="resetKeSiaga()">
+        Reset ke SIAGA
+      </button>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("watchScreen");
+      const ctx = canvas.getContext("2d");
+      const led = document.getElementById("led");
+      const watchContainer = document.getElementById("watchContainer");
+      const hardwareBtn = document.getElementById("hardwareBtn");
+      const btnKoneksi = document.getElementById("btnKoneksi");
+
+      // State Aplikasi
+      let state = {
+        mode: "SIAGA", // SIAGA, DARURAT, INSTRUKSI, BANTUAN, SOS_INIT, SOS_SENT, AMAN, BATAL
+        isOnline: true,
+        baterai: "🔋",
+        resetTimer: null,
+        daruratFrame: 1, // Tambahan untuk frame animasi darurat
+      };
+
+      // Logika Tombol
+      let clickCount = 0;
+      let clickTimer = null;
+      let pressStartTime = 0;
+      let pressInterval = null;
+      let isHolding = false;
+
+      // Helper Rounded Rectangle
+      function roundRect(ctx, x, y, width, height, radius, fill) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(
+          x + width,
+          y + height,
+          x + width - radius,
+          y + height,
+        );
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        if (fill) ctx.fill();
+      }
+
+      // Inisialisasi & Loop Jam
+      setInterval(drawScreen, 1000); // Update jam setiap detik
+      drawScreen();
+
+      // ==========================================
+      // LOGIKA PENGGAMBARAN CANVAS (UI JAM)
+      // ==========================================
+      function drawScreen() {
+        // Background Gradient Halus (Mirip gambar)
+        let grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grd.addColorStop(0, "#3a3a3a");
+        grd.addColorStop(1, "#111111");
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Status Bar (Top)
+        ctx.font = "12px Arial";
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+          state.isOnline
+            ? "🔗 BLE " + state.baterai
+            : "❌ OFF " + state.baterai,
+          canvas.width - 15,
+          20,
+        );
+
+        if (state.mode === "SIAGA") {
+          ctx.textAlign = "left";
+          ctx.fillStyle = "#ccc";
+          ctx.fillText("Mode siaga", 15, 20);
+        }
+
+        // Bottom Bar (Panduan Tombol abu-abu)
+        ctx.fillStyle = "#606877";
+        roundRect(ctx, 10, canvas.height - 40, canvas.width - 20, 30, 6, true);
+        ctx.fillStyle = "#fff";
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(
+          "1x Suara • 2x Bantuan • 3x SOS (tahan 2dtk) - (5dtk aman)",
+          canvas.width / 2,
+          canvas.height - 25,
+          canvas.width - 40, // batas lebar agar tidak keluar container
+        );
+
+        // Main Content (Center)
+        ctx.textAlign = "center";
+        let centerY = canvas.height / 2 - 10;
+
+        switch (state.mode) {
+          case "SIAGA":
+            let now = new Date();
+            let hours = String(now.getHours()).padStart(2, "0");
+            let minutes = String(now.getMinutes()).padStart(2, "0");
+            let months = [
+              "Januari",
+              "Februari",
+              "Maret",
+              "April",
+              "Mei",
+              "Juni",
+              "Juli",
+              "Agustus",
+              "September",
+              "Oktober",
+              "November",
+              "Desember",
+            ];
+            let dateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+
+            ctx.font = "bold 50px Arial";
+            ctx.fillStyle = "#fff";
+            ctx.fillText(`${hours}:${minutes}`, canvas.width / 2, centerY - 15);
+
+            ctx.font = "18px Arial";
+            ctx.fillStyle = "#ccc";
+            ctx.fillText(dateStr, canvas.width / 2, centerY + 25);
+            setLED("led-siaga");
+            break;
+
+          case "DARURAT":
+            if (state.daruratFrame === 1) {
+              ctx.font = "50px Arial";
+              ctx.fillText("⚠️", canvas.width / 2, centerY - 30);
+              ctx.font = "14px Arial";
+              ctx.fillStyle = "#fff";
+              ctx.fillText("DARURAT GEMPA DI", canvas.width / 2, centerY + 20);
+              ctx.fillText("LOKASI ANDA", canvas.width / 2, centerY + 40);
+            } else {
+              ctx.font = "bold 18px Arial";
+              ctx.fillStyle = "#ff3b30";
+              ctx.fillText("GEMPA (SIAGA)", canvas.width / 2, centerY - 30);
+              ctx.font = "16px Arial";
+              ctx.fillStyle = "#fff";
+              ctx.fillText("Jauh dari kaca.", canvas.width / 2, centerY + 5);
+              ctx.fillText("Lindungi kepala.", canvas.width / 2, centerY + 27);
+            }
+            setLED("led-darurat");
+            break;
+
+          case "INSTRUKSI":
+            ctx.font = "50px Arial";
+            ctx.fillText("🔊", canvas.width / 2, centerY - 20);
+            ctx.font = "bold 14px Arial";
+            ctx.fillStyle = "#fff";
+            ctx.fillText("IKUTI INSTRUKSI", canvas.width / 2, centerY + 30);
+            break;
+
+          case "BANTUAN":
+            ctx.font = "50px Arial";
+            ctx.fillText("✋", canvas.width / 2, centerY - 25);
+            ctx.font = "bold 14px Arial";
+            ctx.fillStyle = "#fff";
+            ctx.fillText("BANTUAN", canvas.width / 2, centerY + 20);
+            ctx.fillText("DIKIRIMKAN", canvas.width / 2, centerY + 40);
+            if (!state.isOnline) drawOfflineSyncIcon();
+            break;
+
+          case "SOS_INIT":
+            ctx.fillStyle = "#ff3b30";
+            roundRect(
+              ctx,
+              canvas.width / 2 - 35,
+              centerY - 50,
+              70,
+              45,
+              8,
+              true,
+            );
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 22px Arial";
+            ctx.fillText("SOS", canvas.width / 2, centerY - 27);
+
+            ctx.font = "bold 14px Arial";
+            ctx.fillText("TAHAN 2 DETIK", canvas.width / 2, centerY + 30);
+            setLED("led-merah-solid");
+            break;
+
+          case "SOS_SENT":
+            ctx.font = "50px Arial";
+            ctx.fillText("🚨", canvas.width / 2, centerY - 20);
+            ctx.font = "bold 16px Arial";
+            ctx.fillStyle = "#fff";
+            ctx.fillText("SOS TERKIRIM!", canvas.width / 2, centerY + 30);
+            if (!state.isOnline) drawOfflineSyncIcon();
+            break;
+
+          case "AMAN":
+            ctx.font = "50px Arial";
+            ctx.fillText("✔️", canvas.width / 2, centerY - 20);
+            ctx.font = "bold 16px Arial";
+            ctx.fillStyle = "#34c759";
+            ctx.fillText("SAYA AMAN", canvas.width / 2, centerY + 30);
+            if (!state.isOnline) drawOfflineSyncIcon();
+            break;
+
+          case "BATAL":
+            ctx.font = "50px Arial";
+            ctx.fillText("❌", canvas.width / 2, centerY - 20);
+            ctx.font = "bold 16px Arial";
+            ctx.fillStyle = "#fff";
+            ctx.fillText("DIBATALKAN", canvas.width / 2, centerY + 30);
+            break;
+        }
+      }
+
+      function drawOfflineSyncIcon() {
+        ctx.font = "16px Arial";
+        ctx.fillText("📥", canvas.width - 25, canvas.height / 2);
+      }
+
+      function setLED(className) {
+        led.className = "led-indicator " + className;
+      }
+
+      // ==========================================
+      // EFEK GETAR (VIBRASI & VISUAL SHAKE)
+      // ==========================================
+      function getar(pola) {
+        // Vibrasi Browser (Hanya jalan di Mobile)
+        if (navigator.vibrate) {
+          navigator.vibrate(pola);
+        }
+
+        // Visual Shake untuk simulasi di Desktop
+        watchContainer.classList.add("vibrating");
+
+        // Kalkulasi total waktu getar
+        let totalWaktu = 0;
+        if (Array.isArray(pola)) {
+          totalWaktu = pola.reduce((a, b) => a + b, 0);
+        } else {
+          totalWaktu = pola;
+        }
+
+        setTimeout(
+          () => {
+            watchContainer.classList.remove("vibrating");
+          },
+          Math.min(totalWaktu, 1000),
+        ); // Max shake visual 1 detik
+      }
+
+      // ==========================================
+      // LOGIKA PERUBAHAN STATE
+      // ==========================================
+      function setMode(newMode) {
+        state.mode = newMode;
+        drawScreen();
+
+        // Auto-reset ke siaga untuk status sementara
+        clearTimeout(state.resetTimer);
+        if (["INSTRUKSI", "BANTUAN", "AMAN", "BATAL"].includes(newMode)) {
+          state.resetTimer = setTimeout(() => {
+            if (state.mode !== "DARURAT" && state.mode !== "SOS_SENT") {
+              setMode("SIAGA");
+            }
+          }, 5000);
+        }
+      }
+
+      // Aksi-aksi spesifik
+      function triggerPeringatanHP() {
+        state.daruratFrame = 1;
+        setMode("DARURAT");
+        getar([500, 200, 500, 200, 500]); // 3x getaran kuat
+
+        // Transisi dari layar peringatan ke layar instruksi detail
+        setTimeout(() => {
+          if (state.mode === "DARURAT") {
+            state.daruratFrame = 2;
+            drawScreen();
+          }
+        }, 2500);
+      }
+
+      function aksiInstruksi() {
+        setMode("INSTRUKSI");
+        getar(200); // 1x pendek
+        setLED("led-biru");
+        setTimeout(() => setLED("led-siaga"), 500); // nyala 1x
+      }
+
+      function aksiBantuan() {
+        setMode("BANTUAN");
+        getar([150, 100, 150]); // 2x pendek
+        setLED("led-kuning");
+        setTimeout(() => setLED("led-siaga"), 3000);
+      }
+
+      function aksiSOSInit() {
+        setMode("SOS_INIT");
+        getar([50, 50, 50, 50, 50, 50, 50, 50]); // Getar cepat kontinu
+      }
+
+      function aksiSOSSent() {
+        setMode("SOS_SENT");
+        getar([600, 200, 600, 200, 600]); // 3x kuat
+        setLED("led-darurat"); // merah kedip cepat
+
+        // SOS bertahan lebih lama
+        clearTimeout(state.resetTimer);
+        state.resetTimer = setTimeout(() => setMode("SIAGA"), 10000);
+      }
+
+      function aksiAman() {
+        setMode("AMAN");
+        getar(800); // 1x panjang
+        setLED("led-hijau-solid");
+        setTimeout(() => setLED("led-siaga"), 3000);
+      }
+
+      function aksiBatal() {
+        setMode("BATAL");
+        getar(150); // 1x pendek
+        setLED("led-putih");
+
+        // Kedip putih 2x
+        setTimeout(() => setLED(""), 200);
+        setTimeout(() => setLED("led-putih"), 400);
+        setTimeout(() => setLED("led-siaga"), 600);
+      }
+
+      function toggleKoneksi() {
+        state.isOnline = !state.isOnline;
+        btnKoneksi.innerText = state.isOnline
+          ? "Ubah ke Offline"
+          : "Ubah ke Online";
+        drawScreen();
+      }
+
+      function resetKeSiaga() {
+        setMode("SIAGA");
+      }
+
+      // ==========================================
+      // LOGIKA PENANGANAN TOMBOL (KLIK & TAHAN)
+      // ==========================================
+
+      function handlePressStart(e) {
+        e.preventDefault();
+        isHolding = true;
+        pressStartTime = Date.now();
+
+        // Cek secara berkala berapa lama ditahan
+        pressInterval = setInterval(() => {
+          let durasi = Date.now() - pressStartTime;
+
+          // Logika SOS: Jika sedang di layar TAHAN 2DTK (SOS Init) dan ditahan 2s
+          if (state.mode === "SOS_INIT" && durasi >= 2000) {
+            aksiSOSSent();
+            clearInterval(pressInterval);
+            isHolding = false;
+          }
+          // Logika Batal: Ditahan 5 detik dari mana saja
+          else if (state.mode !== "SOS_INIT" && durasi >= 5000) {
+            aksiBatal();
+            clearInterval(pressInterval);
+            isHolding = false;
+          }
+        }, 100);
+      }
+
+      function handlePressEnd(e) {
+        e.preventDefault();
+        clearInterval(pressInterval);
+
+        if (!isHolding) return; // Sudah ditangani oleh timer hold
+        isHolding = false;
+
+        let durasi = Date.now() - pressStartTime;
+
+        // Jika ditahan antara 2s - 5s dan bukan proses SOS
+        if (durasi >= 2000 && durasi < 5000 && state.mode !== "SOS_INIT") {
+          aksiAman();
+          clickCount = 0; // Reset klik
+          return;
+        }
+
+        // Jika durasi sangat singkat (< 500ms), anggap sebagai klik
+        if (durasi < 500) {
+          clickCount++;
+          clearTimeout(clickTimer);
+
+          // Tunggu sebentar untuk melihat apakah ada klik tambahan
+          clickTimer = setTimeout(() => {
+            if (clickCount === 1) {
+              aksiInstruksi();
+            } else if (clickCount === 2) {
+              aksiBantuan();
+            } else if (clickCount >= 3) {
+              aksiSOSInit();
+            }
+            clickCount = 0; // Reset setelah eksekusi
+          }, 350); // Jendela waktu 350ms antar klik
+        }
+      }
+
+      // Event Listeners ke Tombol Fisik
+      hardwareBtn.addEventListener("mousedown", handlePressStart);
+      hardwareBtn.addEventListener("mouseup", handlePressEnd);
+      hardwareBtn.addEventListener("mouseleave", () => {
+        if (isHolding) handlePressEnd({ preventDefault: () => {} });
+      });
+
+      // Support Touch Screen
+      hardwareBtn.addEventListener("touchstart", handlePressStart);
+      hardwareBtn.addEventListener("touchend", handlePressEnd);
+    </script>
+  </body>
+</html>
